@@ -1,0 +1,6 @@
+# Core (no heavy deps for sim)
+# numpy for gym observation
+numpy>=1.24,<3
+
+# Gymnasium for RL env (optional)
+gymnasium>=0.29,<1
