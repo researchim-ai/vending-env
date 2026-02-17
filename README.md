@@ -19,7 +19,7 @@ pip install -r requirements.txt
 - **`vending_env/agents/subagent/`** — саб-агент «физического мира»: restock, set_price, collect_cash.
 - **`vending_env/agents/llm/`** — цикл LLM-агента с tool calling и памятью.
 - **`vending_env/env/`** — Gymnasium-окружение для RL.
-- **`vending_env/eval/`** — прогон эпизодов, метрики (net worth, units sold, days).
+- **`vending_env/eval/`** — прогон эпизодов, метрики, **генерация данных для тренировки** (траектории, RL-пары, LLM SFT).
 
 ## Быстрый старт
 
@@ -65,6 +65,41 @@ obs, reward, terminated, truncated, info = env.step(action)
 - Время за инструменты: 5 / 25 / 75 мин (по умолчанию).
 
 См. `vending_env/config.py` и `EnvConfig`.
+
+## Генерация данных для тренировки
+
+Можно генерировать датасеты для imitation learning, RL или SFT LLM.
+
+**Политики:** `rule_based` (эвристика: заказы при низком запасе, restock, collect_cash, wait_for_next_day) и `random`.
+
+**Форматы экспорта (JSONL):**
+- **`trajectory`** — один эпизод на строку: список шагов (tool, args, result, net_worth, day) + метрики.
+- **`rl`** — один шаг на строку: `obs`, `action`, `reward`, `next_obs` (при `capture_state_snapshots` в `obs` полный снимок состояния).
+- **`llm_sft`** — один пример на строку: `messages` (контекст) + `target_tool`, `target_args` для supervised fine-tuning.
+
+**CLI:**
+```bash
+# 20 эпизодов, rule_based, полные траектории
+python scripts/generate_training_data.py --out data/trajectories.jsonl --n 20 --format trajectory
+
+# 10 эпизодов, пары (obs, action, reward) для RL
+python scripts/generate_training_data.py --out data/rl_steps.jsonl --n 10 --format rl --max-steps 200
+
+# Примеры для SFT LLM (контекст → следующий tool call)
+python scripts/generate_training_data.py --out data/llm_sft.jsonl --n 5 --format llm_sft
+```
+
+**Программно:**
+```python
+from vending_env.eval import generate_episodes, export_episodes_to_jsonl, trace_to_rl_sequences
+
+# Итерация по эпизодам
+for trace, metrics, snapshots in generate_episodes(5, policy="rule_based", base_seed=42, max_steps=200):
+    print(metrics.net_worth_final, metrics.units_sold)
+
+# Сразу экспорт в файл
+export_episodes_to_jsonl("data/out.jsonl", n_episodes=10, format="rl", policy="rule_based")
+```
 
 ## Метрики (как в статье)
 

@@ -21,6 +21,7 @@ class StepRecord:
     net_worth: float
     day: int
     terminated: bool
+    state_snapshot: Optional[Dict[str, Any]] = None  # опционально для генерации данных
 
 
 def run_episode(
@@ -30,6 +31,7 @@ def run_episode(
     max_steps: int = 2000,
     setup_suppliers: bool = True,
     trace: Optional[List[StepRecord]] = None,
+    capture_state_snapshots: bool = False,
 ) -> tuple[ToolRuntime, EpisodeMetrics, List[StepRecord]]:
     """
     Запустить один эпизод: agent_callback(runtime) вызывается каждый шаг и возвращает
@@ -55,6 +57,8 @@ def run_episode(
         tool_use_count[tool_name] = tool_use_count.get(tool_name, 0) + 1
         nw = runtime.state.net_worth()
         net_worths.append(nw)
+        from .snapshots import state_snapshot
+        snap = state_snapshot(runtime) if capture_state_snapshots else None
         trace.append(StepRecord(
             step=step,
             tool_name=tool_name,
@@ -63,6 +67,7 @@ def run_episode(
             net_worth=nw,
             day=runtime.state.current_day,
             terminated=term,
+            state_snapshot=snap,
         ))
         if term:
             break
